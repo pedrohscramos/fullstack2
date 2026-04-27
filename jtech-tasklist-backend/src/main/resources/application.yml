@@ -6,23 +6,27 @@ spring:
     active: ${PROFILE:dev}
   datasource:
     driverClassName: org.postgresql.Driver
-    url: 
-      jdbc:postgresql://${DS_URL:localhost}:${DS_PORT:5432}/${DS_DATABASE:sansys_database}
-    password: ${DS_PASS:postgres}
-    username: ${DS_USER:postgres}
+    url: jdbc:postgresql://${DS_URL:localhost}:${DS_PORT:5432}/${DS_DATABASE:sansys_database}
+    password: ${DS_PASS:p34c3m4k3r}
+    username: ${DS_USER:master}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: 'true'
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     generate-ddl: 'false'
+security:
+  jwt:
+    secret: ${JWT_SECRET:change-me-super-secret-key-which-has-at-least-32chars}
+    access-expiration-seconds: ${JWT_ACCESS_EXPIRATION_SECONDS:3600}
+    refresh-expiration-seconds: ${JWT_REFRESH_EXPIRATION_SECONDS:1209600}
 management:
   endpoints:
     web:
       exposure:
         include: '*'
 server:
-  port: ${PORT:0}
+  port: ${PORT:8080}
   forward-headers-strategy: framework
 logging:
   level:

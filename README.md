@@ -1,130 +1,188 @@
-# Desafio Técnico Fullstack2 - JTech
+# Tasklist Fullstack - Vue 3 + Spring Boot
 
-## Sistema TODO List Multi-usuário com Arquitetura Avançada
+Sistema TODO multiusuario com autenticacao JWT, listas de tarefas por usuario e UI SPA moderna.
 
-### Contextualização e Objetivo
+## 1) Visao geral da arquitetura
 
-A **JTech** busca desenvolvedores frontend experientes capazes de construir aplicações robustas e escaláveis com arquitetura bem definida. Este desafio avalia sua competência em gerenciamento de estado complexo, arquitetura modular e implementação de sistemas multi-usuário.
+### Contexto
+- O frontend (`jtech-tasklist-frontend`) e responsavel por UX, navegacao, estado e integracao HTTP.
+- O backend (`jtech-tasklist-backend`) e responsavel por regras de negocio, seguranca e persistencia.
+- O PostgreSQL e o banco principal para dados de usuarios, listas, tarefas e refresh tokens.
 
-**Objetivo:** Desenvolver uma aplicação frontend sofisticada que simule um sistema TODO List multi-usuário, demonstrando expertise em arquitetura de componentes, gerenciamento de estado avançado e boas práticas de desenvolvimento.
+### Fluxo geral
+1. Usuario registra/loga no frontend.
+2. Backend retorna `accessToken` + `refreshToken`.
+3. Frontend persiste sessao e envia Bearer token nas rotas privadas.
+4. Backend valida JWT via filtro de seguranca e aplica ownership no acesso aos dados.
+5. Operacoes de listas/tarefas retornam apenas recursos do usuario autenticado.
 
-## Especificações Técnicas
+### Arquitetura escolhida
+- **Monolito modular** (backend unico + frontend unico): menor complexidade operacional, melhor custo de manutencao para o escopo atual.
+- **Hexagonal no backend**: separacao explicita entre dominio/aplicacao e adaptadores de infraestrutura.
+- **SPA por features no frontend**: separacao por dominios (`auth`, `lists`, `tasks`) com stores Pinia.
 
-### Requisitos Funcionais
+## 2) Decisoes tecnicas
 
-#### Sistema de Autenticação Simulada
+### Por que Spring Boot
+- Produtividade alta para API REST com ecossistema maduro.
+- Integracao nativa com Spring Security, JPA e validacao (`@Valid`).
+- Facil observabilidade com Actuator e suporte robusto a testes de integracao.
 
-1. **Interface de Login**: Tela de autenticação com validação de campos não vazios
-2. **Autenticação Mock**: Qualquer combinação válida de usuário/senha redireciona para a aplicação
-3. **Persistência de Sessão**: Manter dados do usuário logado no estado global da aplicação
+### Por que Vue 3 + Pinia
+- Composition API oferece melhor organizacao para features e reuso de logica.
+- Pinia simplifica estado global e testabilidade das regras de UI.
+- Vue Router com guards resolve bem separacao publico/privado.
 
-#### Gerenciamento Avançado de Listas
+### Por que JWT + refresh token
+- API stateless com escalabilidade horizontal simplificada.
+- Controle de expiracao curto no access token e renovacao segura via refresh token.
+- Reduz acoplamento a sessoes server-side.
 
-1. **Múltiplas Listas de Tarefas**: Usuário pode criar listas categorizadas (ex: "Trabalho", "Estudos", "Pessoal")
-2. **CRUD Completo de Listas**:
-   * Criar novas listas com nomes personalizados
-   * Renomear listas existentes com validação
-   * Excluir listas com confirmação e verificação de dependências
-3. **Navegação entre Listas**: Interface intuitiva para alternar entre diferentes listas
+## 3) Arquitetura backend
 
-#### Sistema Completo de Tarefas
+### Camadas (hexagonal)
+- `adapters/input`: controllers e DTOs HTTP.
+- `application/core/usecases`: casos de uso (orquestracao de regras).
+- `application/core/domains`: modelos de dominio.
+- `application/ports/output`: contratos para persistencia/seguranca.
+- `adapters/output`: implementacoes JPA, JWT, BCrypt.
+- `config`: seguranca, beans e configuracoes.
 
-1. **Gerenciamento por Lista**: Cada lista mantém suas próprias tarefas independentemente
-2. **CRUD de Tarefas**: Adicionar, editar, remover e marcar tarefas como concluídas dentro de cada lista
-3. **Validações Avançadas**: Prevenção de duplicatas, validação de campos obrigatórios
+### Padroes e principios aplicados
+- **SOLID** nos use cases e gateways (dependencia por interface).
+- **DTOs** para nao expor entidades JPA na API.
+- **Ownership enforcement**: `userId` vem do token, nao do payload do cliente.
+- **Exception handling centralizado** com `GlobalExceptionHandler`.
 
-#### Persistência e Navegação
+### Endpoints principais
+- Auth: `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`
+- Lists: `POST /lists`, `GET /lists`, `GET /lists/{id}`, `PUT /lists/{id}`, `DELETE /lists/{id}`
+- Tasks: `POST /tasks`, `GET /tasks`, `GET /tasks/{id}`, `PUT /tasks/{id}`, `DELETE /tasks/{id}`
 
-1. **Estado Persistente**: Todo o estado (usuário, listas, tarefas) gerenciado pelo Pinia e persistido
-2. **Roteamento**: Vue Router para separar autenticação da aplicação principal
-3. **Guards de Rota**: Proteção de rotas para usuários não autenticados
+## 4) Arquitetura frontend
 
+### Organizacao
+- `src/views`: telas principais (`LoginView`, `AppView`).
+- `src/stores`: estado por dominio (`auth`, `lists`, `tasks`).
+- `src/services`: cliente HTTP e chamadas de API.
+- `src/types`: contratos TypeScript de payloads/respostas.
+- `src/plugins`: inicializacao de Vuetify e Pinia.
 
-### Stack Tecnológica Obrigatória
+### Estado e navegacao
+- `authStore` persiste sessao em `localStorage` e realiza bootstrap com refresh.
+- Guards no router impedem acesso a rotas privadas sem autenticacao.
+- Store de listas controla lista ativa; store de tarefas sincroniza o conteudo da lista ativa.
 
-* **Framework**: Vue 3 (Composition API)
-* **Roteamento**: Vue Router 4
-* **Gerenciamento de Estado**: Pinia
-* **UI Framework**: Material Design (Vuetify ou biblioteca equivalente)
-* **Testes**: Vitest para testes unitários abrangentes
-* **TypeScript**: Fortemente recomendado para tipagem robusta
+## 5) Seguranca
 
-# BACKEND
+- Senhas com BCrypt no backend.
+- Rotas privadas protegidas por JWT (`SecurityFilterChain` + `JwtAuthenticationFilter`).
+- `401` para token ausente/invalido.
+- Acesso cross-user bloqueado por validacao de ownership no backend.
+- CORS habilitado para `http://localhost:5173`.
 
-## Especificações Técnicas
+## 6) Como rodar o projeto
 
-### Requisitos Funcionais
+### Opcao recomendada: Docker Compose
 
-#### Sistema de Autenticação Segura
+Pre-requisitos:
+- Docker + Docker Compose
 
-1. **Registro de Usuários**:
-   * Endpoint `POST /auth/register` para cadastro com nome, email e senha
-   * Implementação de hash seguro de senhas utilizando bcrypt
-   * Validação de unicidade de email
-2. **Autenticação JWT**:
-   * Endpoint `POST /auth/login` para autenticação e geração de token JWT
-   * Implementação de refresh token para segurança aprimorada
+Passos:
+1. Copie `.env.example` para `.env` e ajuste valores se necessario.
+2. Suba os servicos:
 
-#### Gerenciamento de Tarefas com Segurança
+```bash
+docker compose up --build
+```
 
-1. **CRUD Completo de Tarefas**:
-   * `POST /tasks`: Criar tarefa associada ao usuário autenticado
-   * `GET /tasks`: Listar exclusivamente tarefas do usuário logado
-   * `GET /tasks/{id}`: Buscar tarefa específica com validação de propriedade
-   * `PUT /tasks/{id}`: Atualizar tarefa com controle de acesso
-   * `DELETE /tasks/{id}`: Remover tarefa com validação de proprietário
-2. **Autorização Robusta**: Todas as rotas protegidas por JWT com validação de propriedade dos recursos
+Servicos:
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8080`
+- Swagger: `http://localhost:8080/doc/tasklist/v1/api.html`
+- Postgres: `localhost:5432`
 
-### Requisitos Não Funcionais
+### Opcao local (sem Docker)
 
-#### Arquitetura e Design Patterns
+Pre-requisitos:
+- Node.js `^20.19.0 || >=22.12.0`
+- Java 21
+- PostgreSQL 16+
 
-1. **Princípios SOLID**: Implementação rigorosa dos cinco princípios em todas as camadas
-2. **Arquitetura em Camadas**: Estrutura bem definida (Controller → Service → Repository → Domain)
-3. **Injeção de Dependência**: Utilização adequada do Spring Framework para IoC
-4. **Exception Handling**: Sistema robusto de tratamento centralizado de exceções
+Backend:
 
-#### Qualidade e Testabilidade
+```bash
+cd jtech-tasklist-backend
+./gradlew bootRun
+```
 
-1. **Testes Unitários**: Cobertura completa da camada de serviço com cenários de sucesso e falha
-2. **Testes de Integração**: Validação end-to-end dos endpoints com Spring Test
-3. **Mocks e Stubs**: Utilização adequada de Mockito para isolamento de dependências
+Frontend:
 
-### Stack Tecnológica Obrigatória
+```bash
+cd jtech-tasklist-frontend
+npm install
+npm run dev
+```
 
-* **Linguagem**: Java 17+
-* **Framework**: Spring Boot, Spring Security, Spring Validation
-* **Persistência**: Spring Data JPA com Hibernate
-* **Banco de Dados**: PostgreSQL
-* **Segurança**: JWT, BCrypt
-* **Testes**: JUnit 5, Mockito, Spring Boot Test
+Configure variaveis de ambiente do backend conforme `application.yml` (`DS_URL`, `DS_PORT`, `DS_DATABASE`, `DS_USER`, `DS_PASS`, `JWT_SECRET`).
 
-## Critérios de Avaliação
+## 7) Testes
 
-* **Aplicação de SOLID**: Demonstração clara e justificada dos princípios SOLID (critério principal)
-* **Qualidade Arquitetural**: Design limpo, modular com separação clara de responsabilidades
-* **Cobertura de Testes**: Suite robusta e significativa de testes unitários e de integração
-* **Implementação de Segurança**: Autenticação e autorização corretamente implementadas
-* **Domínio da Stack**: Utilização avançada e adequada do ecossistema Spring
-* **Domínio da Stack**: Utilização avançada das ferramentas do ecossistema Vue.js
-* **Modelagem de Dados**: Relacionamento bem definido entre entidades User e Task
-* **Documentação Técnica**: README detalhado com justificativas arquiteturais
+### Backend
 
-## Expectativa de Entrega
+```bash
+cd jtech-tasklist-backend
+./gradlew test
+```
 
-* **Prazo**: Até 3 dias corridos a partir do recebimento.
-* **Formato**: Repositório Git com código-fonte completo e documentação detalhada.
+Cobertura atual inclui:
+- Unitarios de use cases (sucesso, erro, regras de negocio).
+- Integracao com MockMvc para auth e seguranca de tasks.
 
-### Estrutura Obrigatória do `README.md`
+### Frontend
 
-1. **Visão Geral da Arquitetura**: Descrição detalhada da estrutura e decisões arquiteturais
-2. **Stack Tecnológica**: Lista completa com justificativas para cada escolha
-3. **Como Rodar Localmente**: Instruções passo a passo para setup e execução
-4. **Como Rodar os Testes**: Comandos para executar suite completa de testes
-5. **Estrutura de Pastas Detalhada**: Mapeamento completo da organização modular do código
-6. **Decisões Técnicas Aprofundadas**: Justificativas detalhadas sobre escolhas arquiteturais, padrões e bibliotecas
-7. **Melhorias e Roadmap**: Propostas técnicas para evolução e escalabilidade da aplicação
+```bash
+cd jtech-tasklist-frontend
+npm run test:unit -- --run
+```
+
+Cobertura atual inclui:
+- Stores (`auth`, `lists`, `tasks`) com cenarios de sucesso e erro.
+- Persistencia de sessao e filtros de tarefas.
+
+Relatorio de testes disponivel em `test-report.md`.
+
+## 8) Estrutura de pastas
+
+```text
+.
+├── docker-compose.yml
+├── .github/workflows/ci.yml
+├── jtech-tasklist-backend/
+│   ├── Dockerfile
+│   ├── build.gradle
+│   └── src/
+│       ├── main/java/br/com/jtech/tasklist/
+│       │   ├── adapters/
+│       │   ├── application/
+│       │   └── config/
+│       └── test/java/br/com/jtech/tasklist/
+└── jtech-tasklist-frontend/
+    ├── Dockerfile
+    ├── package.json
+    └── src/
+        ├── views/
+        ├── stores/
+        ├── services/
+        ├── types/
+        └── router/
+```
+
+## CI/CD
+
+Pipeline em `.github/workflows/ci.yml`:
+- Job backend: test + build com Java 21.
+- Job frontend: lint + type-check + tests + build com Node 22.
+- Falha rapida em qualquer etapa critica.
 
 ---
-
-**Boa sorte! A JTech espera uma solução que demonstre maturidade em desenvolvimento frontend e visão arquitetural.**

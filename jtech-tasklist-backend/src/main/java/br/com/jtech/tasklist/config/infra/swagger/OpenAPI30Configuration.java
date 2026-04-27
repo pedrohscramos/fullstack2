@@ -31,7 +31,7 @@ import org.springframework.context.annotation.Configuration;
                 description = "${api.description}",
                 version = "${api.version}"),
         servers = {
-                @Server(url = "http://localhost:8081/${spring.application.name}", description = "Development"),
+                @Server(url = "http://localhost:8080/${spring.application.name}", description = "Development"),
                 @Server(url = "${api.url.homologation}/${spring.application.name}", description = "Homologation"),
                 @Server(url = "${api.url.production}", description = "Production")
         }

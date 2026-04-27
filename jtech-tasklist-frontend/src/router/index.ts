@@ -1,23 +1,55 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import { useAuthStore } from '@/stores/auth'
+import { pinia } from '@/plugins/pinia'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      redirect: '/app',
     },
     {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/app',
+      name: 'app',
+      component: () => import('@/views/AppView.vue'),
+    },
+    {
+      path: '/app/lists/:listId',
+      name: 'app-list',
+      component: () => import('@/views/AppView.vue'),
     },
   ],
+})
+
+let bootPromise: Promise<void> | null = null
+
+router.beforeEach(async (to) => {
+  const authStore = useAuthStore(pinia)
+
+  if (!bootPromise) {
+    bootPromise = authStore.bootstrap()
+  }
+  await bootPromise
+
+  const isPublic = Boolean(to.meta.public)
+  const authenticated = authStore.isAuthenticated
+
+  if (!isPublic && !authenticated) {
+    return { name: 'login' }
+  }
+
+  if (to.name === 'login' && authenticated) {
+    return { name: 'app' }
+  }
+
+  return true
 })
 
 export default router

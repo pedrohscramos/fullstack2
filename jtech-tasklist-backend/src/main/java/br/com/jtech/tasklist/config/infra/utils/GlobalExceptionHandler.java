@@ -9,11 +9,14 @@
  * Information and shall use it only in accordance with the terms of the
  * license agreement you entered into with J-Tech.
  */
-package br.com.jtech.tasklist.config.infra.handlers;
+package br.com.jtech.tasklist.config.infra.utils;
 
-
-
-import br.com.jtech.tasklist.config.infra.exceptions.*;
+import br.com.jtech.tasklist.config.infra.exceptions.ApiError;
+import br.com.jtech.tasklist.config.infra.exceptions.ApiSubError;
+import br.com.jtech.tasklist.config.infra.exceptions.ApiValidationError;
+import br.com.jtech.tasklist.config.infra.exceptions.ConflictException;
+import br.com.jtech.tasklist.config.infra.exceptions.NotFoundException;
+import br.com.jtech.tasklist.config.infra.exceptions.UnauthorizedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -50,8 +53,41 @@ public class GlobalExceptionHandler {
         return buildResponseEntity(error);
     }
 
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(NotFoundException ex) {
+        return buildSimpleError(HttpStatus.NOT_FOUND, ex);
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiError> handleConflict(ConflictException ex) {
+        return buildSimpleError(HttpStatus.CONFLICT, ex);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiError> handleUnauthorized(UnauthorizedException ex) {
+        return buildSimpleError(HttpStatus.UNAUTHORIZED, ex);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
+        return buildSimpleError(HttpStatus.BAD_REQUEST, ex);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        return buildSimpleError(HttpStatus.INTERNAL_SERVER_ERROR, ex);
+    }
+
     private ResponseEntity<ApiError> buildResponseEntity(ApiError apiError) {
         return new ResponseEntity<>(apiError, apiError.getStatus());
+    }
+
+    private ResponseEntity<ApiError> buildSimpleError(HttpStatus status, Exception ex) {
+        ApiError error = new ApiError(status);
+        error.setMessage(ex.getMessage());
+        error.setDebugMessage(ex.getLocalizedMessage());
+        error.setTimestamp(LocalDateTime.now());
+        return buildResponseEntity(error);
     }
 
 
